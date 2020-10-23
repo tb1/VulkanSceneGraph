@@ -72,14 +72,23 @@ void BindVertexBuffers::compile(Context& context)
     vkd.vkBuffers.clear();
     vkd.offsets.clear();
 
-    auto bufferDataList = vsg::createBufferAndTransferData(context, _arrays, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
-    for (auto& bufferData : bufferDataList)
+    _bufferInfoList = vsg::createBufferAndTransferData(context, _arrays, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
+    for (auto& bufferInfo : _bufferInfoList)
     {
-        vkd.buffers.push_back(bufferData.buffer);
-        vkd.vkBuffers.push_back(bufferData.buffer->vk(context.deviceID));
-        vkd.offsets.push_back(bufferData.offset);
+        vkd.buffers.push_back(bufferInfo.buffer);
+        vkd.vkBuffers.push_back(bufferInfo.buffer->vk(context.deviceID));
+        vkd.offsets.push_back(bufferInfo.offset);
     }
 }
+
+void BindVertexBuffers::copyDataToBuffers()
+{
+    for (auto& bufferInfo : _bufferInfoList)
+    {
+        bufferInfo.copyDataToBuffer();
+    }
+}
+
 
 void BindVertexBuffers::record(CommandBuffer& commandBuffer) const
 {

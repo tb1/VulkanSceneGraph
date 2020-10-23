@@ -39,6 +39,8 @@ namespace vsg
 
         void compile(Context& context) override;
 
+        void copyDataToBuffers();
+
         void record(CommandBuffer& commandBuffer) const override;
 
     protected:
@@ -46,13 +48,8 @@ namespace vsg
 
         ref_ptr<Data> _indices;
 
-        struct VulkanData
-        {
-            BufferInfo bufferInfo;
-            VkIndexType indexType;
-        };
-
-        vk_buffer<VulkanData> _vulkanData;
+        BufferInfo _bufferInfo;
+        VkIndexType _indexType;
     };
     VSG_type_name(vsg::BindIndexBuffer);
 

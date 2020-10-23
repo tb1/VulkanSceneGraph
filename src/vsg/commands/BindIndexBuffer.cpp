@@ -43,13 +43,6 @@ BindIndexBuffer::BindIndexBuffer(Data* indices) :
 
 BindIndexBuffer::~BindIndexBuffer()
 {
-    for (auto& vkd : _vulkanData)
-    {
-        if (vkd.bufferInfo.buffer)
-        {
-            vkd.bufferInfo.buffer->release(vkd.bufferInfo.offset, 0); // TODO, we don't locally have a size allocated
-        }
-    }
 }
 
 void BindIndexBuffer::read(Input& input)
@@ -57,7 +50,7 @@ void BindIndexBuffer::read(Input& input)
     Command::read(input);
 
     // clear Vulkan objects
-    _vulkanData.clear();
+    _bufferInfo.release();
 
     // read the key indices data
     input.readObject("Indices", _indices);
@@ -76,21 +69,23 @@ void BindIndexBuffer::compile(Context& context)
     // nothing to compile
     if (!_indices) return;
 
-    auto& vkd = _vulkanData[context.deviceID];
+    if (_bufferInfo.buffer) return;
 
-    // check if already compiled
-    if (vkd.bufferInfo.buffer) return;
+    _indexType = computeIndexType(_indices);
 
     auto bufferInfoList = vsg::createBufferAndTransferData(context, {_indices}, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_SHARING_MODE_EXCLUSIVE);
     if (!bufferInfoList.empty())
     {
-        vkd.bufferInfo = bufferInfoList.back();
-        vkd.indexType = computeIndexType(_indices);
+        _bufferInfo = bufferInfoList.back();
     }
+}
+
+void BindIndexBuffer::copyDataToBuffers()
+{
+    _bufferInfo.copyDataToBuffer();
 }
 
 void BindIndexBuffer::record(CommandBuffer& commandBuffer) const
 {
-    auto& vkd = _vulkanData[commandBuffer.deviceID];
-    vkCmdBindIndexBuffer(commandBuffer, vkd.bufferInfo.buffer->vk(commandBuffer.deviceID), vkd.bufferInfo.offset, vkd.indexType);
+    vkCmdBindIndexBuffer(commandBuffer, _bufferInfo.buffer->vk(commandBuffer.deviceID), _bufferInfo.offset, _indexType);
 }

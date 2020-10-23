@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsg/commands/Command.h>
-#include <vsg/state/Buffer.h>
+#include <vsg/state/BufferInfo.h>
 #include <vsg/state/Descriptor.h>
 #include <vsg/vk/vk_buffer.h>
 
@@ -41,6 +41,8 @@ namespace vsg
 
         void compile(Context& context) override;
 
+        void copyDataToBuffers();
+
         void record(CommandBuffer& commandBuffer) const override;
 
     protected:
@@ -48,6 +50,8 @@ namespace vsg
 
         uint32_t _firstBinding;
         DataList _arrays;
+
+        BufferInfoList _bufferInfoList;
 
         struct VulkanData
         {
