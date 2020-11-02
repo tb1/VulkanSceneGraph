@@ -43,6 +43,7 @@ set(SOURCES
     commands/CopyImageToBuffer.cpp
     commands/CopyAndReleaseBuffer.cpp
     commands/CopyAndReleaseImage.cpp
+    commands/ClearAttachments.cpp
     commands/PipelineBarrier.cpp
     commands/Event.cpp
     commands/NextSubPass.cpp
@@ -116,6 +117,8 @@ set(SOURCES
     viewer/RenderGraph.cpp
     viewer/Presentation.cpp
     viewer/RecordAndSubmitTask.cpp
+    viewer/WindowResizeHandler.cpp
+    viewer/View.cpp
 
     raytracing/AccelerationGeometry.cpp
     raytracing/AccelerationStructure.cpp
@@ -313,6 +316,6 @@ install(EXPORT vsgTargets
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file("${CMAKE_BINARY_DIR}/src/vsg/vsgConfigVersion.cmake" COMPATIBILITY SameMajorVersion)
 
-install(FILES "vsgConfig.cmake" "${CMAKE_BINARY_DIR}/src/vsg/vsgConfigVersion.cmake" DESTINATION lib/cmake/vsg)
+install(FILES "${CMAKE_BINARY_DIR}/src/vsg/vsgConfig.cmake" "${CMAKE_BINARY_DIR}/src/vsg/vsgConfigVersion.cmake" DESTINATION lib/cmake/vsg)
 
 # ]==]

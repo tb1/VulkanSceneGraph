@@ -1,3 +1,5 @@
+#pragma once
+
 /* <editor-fold desc="MIT License">
 
 Copyright(c) 2018 Robert Osfield
@@ -10,37 +12,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/core/Exception.h>
-#include <vsg/io/Options.h>
-#include <vsg/vk/CommandBuffer.h>
+#include <vsg/nodes/Group.h>
 
-using namespace vsg;
+#include <vsg/viewer/Camera.h>
+#include <vsg/viewer/Window.h>
 
-CommandBuffer::CommandBuffer(Device* device, CommandPool* commandPool, VkCommandBufferLevel level) :
-    deviceID(device->deviceID),
-    scratchMemory(ScratchMemory::create(4096)),
-    _level(level),
-    _device(device),
-    _commandPool(commandPool),
-    _currentPipelineLayout(VK_NULL_HANDLE),
-    _currentPushConstantStageFlags(0)
+namespace vsg
 {
-    VkCommandBufferAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocateInfo.commandPool = *commandPool;
-    allocateInfo.level = level;
-    allocateInfo.commandBufferCount = 1;
-
-    if (VkResult result = vkAllocateCommandBuffers(*device, &allocateInfo, &_commandBuffer); result != VK_SUCCESS)
+    /// View class is Group class that pairs a Camera that defines the view with a subgraph that defines the scene that is being viewed/rendered
+    class VSG_DECLSPEC View : public Inherit<Group, View>
     {
-        throw Exception{"Error: Failed to create command buffers.", result};
-    }
-}
+    public:
+        View();
 
-CommandBuffer::~CommandBuffer()
-{
-    if (_commandBuffer)
-    {
-        vkFreeCommandBuffers((*_device), (*_commandPool), 1, &_commandBuffer);
-    }
-}
+        View(ref_ptr<Camera> in_camera, ref_ptr<Node> in_scenegraph = {});
+
+        /// camera controls the viewport state and projection and view matrices
+        ref_ptr<Camera> camera;
+
+        /// viewID is automatically assinged by Viewer::compile()
+        uint32_t viewID = 0;
+    };
+
+} // namespace vsg

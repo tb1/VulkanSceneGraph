@@ -10,37 +10,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/core/Exception.h>
 #include <vsg/io/Options.h>
-#include <vsg/vk/CommandBuffer.h>
+#include <vsg/traversals/RecordTraversal.h>
+#include <vsg/viewer/View.h>
+
+#include <iostream>
 
 using namespace vsg;
 
-CommandBuffer::CommandBuffer(Device* device, CommandPool* commandPool, VkCommandBufferLevel level) :
-    deviceID(device->deviceID),
-    scratchMemory(ScratchMemory::create(4096)),
-    _level(level),
-    _device(device),
-    _commandPool(commandPool),
-    _currentPipelineLayout(VK_NULL_HANDLE),
-    _currentPushConstantStageFlags(0)
+View::View()
 {
-    VkCommandBufferAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocateInfo.commandPool = *commandPool;
-    allocateInfo.level = level;
-    allocateInfo.commandBufferCount = 1;
-
-    if (VkResult result = vkAllocateCommandBuffers(*device, &allocateInfo, &_commandBuffer); result != VK_SUCCESS)
-    {
-        throw Exception{"Error: Failed to create command buffers.", result};
-    }
 }
 
-CommandBuffer::~CommandBuffer()
+View::View(ref_ptr<Camera> in_camera, ref_ptr<Node> in_scenegraph)
 {
-    if (_commandBuffer)
-    {
-        vkFreeCommandBuffers((*_device), (*_commandPool), 1, &_commandBuffer);
-    }
+    camera = in_camera;
+    if (in_scenegraph) addChild(in_scenegraph);
 }
+

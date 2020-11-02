@@ -1,6 +1,8 @@
+#pragma once
+
 /* <editor-fold desc="MIT License">
 
-Copyright(c) 2018 Robert Osfield
+Copyright(c) 2019 Thomas Hogarth
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -10,37 +12,26 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/core/Exception.h>
-#include <vsg/io/Options.h>
-#include <vsg/vk/CommandBuffer.h>
+#include <vsg/commands/Command.h>
 
-using namespace vsg;
-
-CommandBuffer::CommandBuffer(Device* device, CommandPool* commandPool, VkCommandBufferLevel level) :
-    deviceID(device->deviceID),
-    scratchMemory(ScratchMemory::create(4096)),
-    _level(level),
-    _device(device),
-    _commandPool(commandPool),
-    _currentPipelineLayout(VK_NULL_HANDLE),
-    _currentPushConstantStageFlags(0)
+namespace vsg
 {
-    VkCommandBufferAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocateInfo.commandPool = *commandPool;
-    allocateInfo.level = level;
-    allocateInfo.commandBufferCount = 1;
 
-    if (VkResult result = vkAllocateCommandBuffers(*device, &allocateInfo, &_commandBuffer); result != VK_SUCCESS)
+    /// Encapsulation of vkCmdCopyAttachments functionality
+    class VSG_DECLSPEC ClearAttachments : public Inherit<Command, ClearAttachments>
     {
-        throw Exception{"Error: Failed to create command buffers.", result};
-    }
-}
+    public:
+        using Attachments = std::vector<VkClearAttachment>;
+        using Rects = std::vector<VkClearRect>;
 
-CommandBuffer::~CommandBuffer()
-{
-    if (_commandBuffer)
-    {
-        vkFreeCommandBuffers((*_device), (*_commandPool), 1, &_commandBuffer);
-    }
-}
+        ClearAttachments();
+        ClearAttachments(const Attachments& in_attachments, const Rects& in_rects);
+
+        Attachments attachments;
+        Rects rects;
+
+        void record(CommandBuffer& commandBuffer) const override;
+    };
+    VSG_type_name(vsg::ClearAttachments);
+
+} // namespace vsg
