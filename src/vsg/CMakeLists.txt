@@ -50,7 +50,9 @@ set(SOURCES
     commands/Dispatch.cpp
     commands/PushConstants.cpp
     commands/Draw.cpp
+    commands/DrawIndirect.cpp
     commands/DrawIndexed.cpp
+    commands/DrawIndexedIndirect.cpp
 
     state/Buffer.cpp
     state/BufferInfo.cpp
@@ -92,6 +94,8 @@ set(SOURCES
 
     text/Text.cpp
     text/TextLayout.cpp
+    text/GpuLayoutTechnique.cpp
+    text/CpuLayoutTechnique.cpp
     text/Font.cpp
 
     traversals/ArrayState.cpp
