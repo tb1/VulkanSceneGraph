@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsg/state/GraphicsPipeline.h>
+#include <vsg/state/ViewportState.h>
 #include <vsg/viewer/ProjectionMatrix.h>
 #include <vsg/viewer/ViewMatrix.h>
 
@@ -34,8 +35,8 @@ namespace vsg
         void setViewportState(ref_ptr<ViewportState> viewportState) { _viewportState = viewportState; }
         ViewportState* getViewportState() const { return _viewportState; }
 
-        VkViewport& getViewport() const { return _viewportState->getViewport(); }
-        VkRect2D& getRenderArea() const { return _viewportState->getScissor(); }
+        VkViewport getViewport() const { return _viewportState ? _viewportState->getViewport() : VkViewport{}; }
+        VkRect2D getRenderArea() const { return _viewportState ? _viewportState->getScissor() : VkRect2D{}; }
 
     protected:
         ref_ptr<ProjectionMatrix> _projectionMatrix;

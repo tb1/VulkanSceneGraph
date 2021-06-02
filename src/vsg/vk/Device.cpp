@@ -50,7 +50,7 @@ static void releaseDeiviceID(uint32_t deviceID)
     s_ActiveDevices[deviceID] = false;
 }
 
-Device::Device(PhysicalDevice* physicalDevice, const QueueSettings& queueSettings, const Names& layers, const Names& deviceExtensions, const VkPhysicalDeviceFeatures& deviceFeatures, AllocationCallbacks* allocator) :
+Device::Device(PhysicalDevice* physicalDevice, const QueueSettings& queueSettings, const Names& layers, const Names& deviceExtensions, const DeviceFeatures* deviceFeatures, AllocationCallbacks* allocator) :
     deviceID(getUniqueDeviceID()),
     _instance(physicalDevice->getInstance()),
     _physicalDevice(physicalDevice),
@@ -69,14 +69,14 @@ Device::Device(PhysicalDevice* physicalDevice, const QueueSettings& queueSetting
     {
         if (queueSetting.queueFamilyIndex < 0) continue;
 
-        // check to see if the queueFamilyIndex has already been referened or us unique
+        // check to see if the queueFamilyIndex has already been referenced or us unique
         bool unique = true;
         for (auto& existingInfo : queueCreateInfos)
         {
             if (existingInfo.queueFamilyIndex == static_cast<uint32_t>(queueSetting.queueFamilyIndex)) unique = false;
         }
 
-        // Vylkan doesn't support non unique queueFamily so ignore this entry.
+        // Vulkan doesn't support non unique queueFamily so ignore this entry.
         if (!unique) continue;
 
         VkDeviceQueueCreateInfo queueCreateInfo = {};
@@ -104,7 +104,7 @@ Device::Device(PhysicalDevice* physicalDevice, const QueueSettings& queueSetting
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.empty() ? nullptr : queueCreateInfos.data();
 
-    createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.pEnabledFeatures = nullptr;
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.empty() ? nullptr : deviceExtensions.data();
@@ -112,7 +112,7 @@ Device::Device(PhysicalDevice* physicalDevice, const QueueSettings& queueSetting
     createInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
     createInfo.ppEnabledLayerNames = layers.empty() ? nullptr : layers.data();
 
-    createInfo.pNext = nullptr;
+    createInfo.pNext = deviceFeatures ? deviceFeatures->data() : nullptr;
 
     VkResult result = vkCreateDevice(*physicalDevice, &createInfo, allocator, &_device);
     if (result != VK_SUCCESS)

@@ -465,6 +465,22 @@ void ConstVisitor::apply(const VertexIndexDraw& value)
 {
     apply(static_cast<const Command&>(value));
 }
+void ConstVisitor::apply(const DepthSorted& value)
+{
+    apply(static_cast<const Node&>(value));
+}
+void ConstVisitor::apply(const Bin& value)
+{
+    apply(static_cast<const Node&>(value));
+}
+void ConstVisitor::apply(const Switch& value)
+{
+    apply(static_cast<const Node&>(value));
+}
+void ConstVisitor::apply(const MaskGroup& value)
+{
+    apply(static_cast<const Node&>(value));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -593,6 +609,23 @@ void ConstVisitor::apply(const DrawIndexed& value)
 void ConstVisitor::apply(const ClearAttachments& value)
 {
     apply(static_cast<const Command&>(value));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// RTX
+//
+void ConstVisitor::apply(const DrawMeshTasks& dmt)
+{
+    apply(static_cast<const Command&>(dmt));
+}
+void ConstVisitor::apply(const DrawMeshTasksIndirect& dmti)
+{
+    apply(static_cast<const Command&>(dmti));
+}
+void ConstVisitor::apply(const DrawMeshTasksIndirectCount& dmtic)
+{
+    apply(static_cast<const Command&>(dmtic));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

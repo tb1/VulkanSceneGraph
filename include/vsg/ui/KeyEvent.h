@@ -94,6 +94,7 @@ namespace vsg
         KEY_Quotedbl = 0x22,
         KEY_Hash = 0x23,
         KEY_Dollar = 0x24,
+        KEY_Percent = 0x25,
         KEY_Ampersand = 0x26,
         KEY_Quote = 0x27,
         KEY_Leftparen = 0x28,
@@ -117,6 +118,10 @@ namespace vsg
         KEY_Caret = 0x5E,
         KEY_Underscore = 0x5F,
         KEY_Backquote = 0x60,
+        KEY_Leftcurlybracket = 0x7B,
+        KEY_Verticalslash = 0x7C,
+        KEY_Rightcurlybracket = 0x7D,
+        KEY_Tilde = 0x7E,
 
         KEY_BackSpace = 0xFF08, /* back space, back char */
         KEY_Tab = 0xFF09,
@@ -274,9 +279,11 @@ namespace vsg
     };
 
     VSG_type_name(vsg::KeyEvent);
-    class KeyEvent : public Inherit<WindowEvent, KeyEvent>
+    class VSG_DECLSPEC KeyEvent : public Inherit<WindowEvent, KeyEvent>
     {
     public:
+        KeyEvent() {}
+
         KeyEvent(Window* in_window, time_point in_time, KeySymbol in_keyBase, KeySymbol in_keyModified, KeyModifier in_modifier, uint32_t in_repeatCount = 0) :
             Inherit(in_window, in_time),
             keyBase(in_keyBase),
@@ -284,16 +291,21 @@ namespace vsg
             keyModifier(in_modifier),
             repeatCount(in_repeatCount) {}
 
-        KeySymbol keyBase;
-        KeySymbol keyModified;
-        KeyModifier keyModifier;
-        uint32_t repeatCount;
+        KeySymbol keyBase = {};
+        KeySymbol keyModified = {};
+        KeyModifier keyModifier = {};
+        uint32_t repeatCount = 0;
+
+        void read(Input& input) override;
+        void write(Output& output) const override;
     };
 
     VSG_type_name(vsg::KeyPressEvent);
     class KeyPressEvent : public Inherit<KeyEvent, KeyPressEvent>
     {
     public:
+        KeyPressEvent() {}
+
         KeyPressEvent(Window* in_window, time_point in_time, KeySymbol in_keyBase, KeySymbol in_keyModified, KeyModifier in_modifier, uint32_t in_repeatCount = 0) :
             Inherit(in_window, in_time, in_keyBase, in_keyModified, in_modifier, in_repeatCount) {}
     };
@@ -302,6 +314,8 @@ namespace vsg
     class KeyReleaseEvent : public Inherit<KeyEvent, KeyReleaseEvent>
     {
     public:
+        KeyReleaseEvent() {}
+
         KeyReleaseEvent(Window* in_window, time_point in_time, KeySymbol in_keyBase, KeySymbol in_keyModified, KeyModifier in_modifier, uint32_t in_repeatCount = 0) :
             Inherit(in_window, in_time, in_keyBase, in_keyModified, in_modifier, in_repeatCount) {}
     };

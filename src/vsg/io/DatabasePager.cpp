@@ -86,13 +86,13 @@ ref_ptr<PagedLOD> DatabaseQueue::take_when_available()
 
 #if 1
 
-    // find the OagedLOD with the highest priority;
+    // find the PagedLOD with the highest priority;
     auto itr = _queue.begin();
     auto highest_itr = itr++;
 
     for (; itr != _queue.end(); ++itr)
     {
-        if ((*highest_itr)->priority > (*itr)->priority) highest_itr = itr;
+        if ((*itr)->priority > (*highest_itr)->priority) highest_itr = itr;
     }
 
     ref_ptr<PagedLOD> plod = *highest_itr;
@@ -399,15 +399,23 @@ void DatabasePager::start()
 #endif
                 if (!nodesCompiled.empty())
                 {
-                    ct->context.record();
-
-                    for (auto& plod : nodesCompiled)
+                    if (ct->context.record())
                     {
-                        plod->semaphore = ct->context.semaphore;
-                        plod->requestStatus.exchange(PagedLOD::MergeRequest);
+                        for (auto& plod : nodesCompiled)
+                        {
+                            plod->semaphore = ct->context.semaphore;
+                            plod->requestStatus.exchange(PagedLOD::MergeRequest);
+                        }
+                        toMergeQueue->add(nodesCompiled);
                     }
-
-                    toMergeQueue->add(nodesCompiled);
+                    else
+                    {
+                        ct->context.semaphore->numDependentSubmissions().exchange(0);
+                        for (auto& plod : nodesCompiled)
+                        {
+                            databasePager.requestDiscarded(plod);
+                        }
+                    }
                 }
                 else
                 {

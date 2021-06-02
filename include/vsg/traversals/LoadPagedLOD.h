@@ -21,7 +21,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 namespace vsg
 {
     //** Traverse the scene graph loading any PLOD that are required for a camera view.*/
-    class LoadPagedLOD : public vsg::Visitor
+    class VSG_DECLSPEC LoadPagedLOD : public vsg::Visitor
     {
     public:
         LoadPagedLOD(ref_ptr<Camera> in_camera, int in_loadLevels = 30);
@@ -36,6 +36,7 @@ namespace vsg
         int loadLevels = 0;
         int level = 0;
         unsigned int numTiles = 0;
+        ref_ptr<Options> options;
 
     protected:
         using Plane = dplane;
@@ -49,6 +50,7 @@ namespace vsg
         Polytope _frustumUnit;
         Polytope _frustumProjected;
         PolytopeStack _frustumStack;
+        Paths _pathStack;
 
         inline std::pair<double, double> computeDistanceAndRF(dsphere& bs) const
         {

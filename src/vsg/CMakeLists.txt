@@ -34,6 +34,10 @@ set(SOURCES
     nodes/PagedLOD.cpp
     nodes/MatrixTransform.cpp
     nodes/VertexIndexDraw.cpp
+    nodes/DepthSorted.cpp
+    nodes/Bin.cpp
+    nodes/Switch.cpp
+    nodes/MaskGroup.cpp
 
     commands/BindIndexBuffer.cpp
     commands/BindVertexBuffers.cpp
@@ -60,7 +64,6 @@ set(SOURCES
     state/ComputePipeline.cpp
     state/DescriptorSet.cpp
     state/GraphicsPipeline.cpp
-    state/GraphicsPipelineStates.cpp
     state/Descriptor.cpp
     state/DescriptorBuffer.cpp
     state/DescriptorImage.cpp
@@ -74,7 +77,17 @@ set(SOURCES
     state/StateCommand.cpp
     state/StateGroup.cpp
     state/Image.cpp
+    state/ImageInfo.cpp
     state/ImageView.cpp
+    state/VertexInputState.cpp
+    state/InputAssemblyState.cpp
+    state/TessellationState.cpp
+    state/ViewportState.cpp
+    state/RasterizationState.cpp
+    state/MultisampleState.cpp
+    state/DepthStencilState.cpp
+    state/ColorBlendState.cpp
+    state/DynamicState.cpp
 
     io/FileSystem.cpp
     io/AsciiInput.cpp
@@ -88,15 +101,15 @@ set(SOURCES
     io/Options.cpp
     io/ObjectFactory.cpp
     io/ReaderWriter.cpp
-    io/ReaderWriter_vsg.cpp
+    io/VSG.cpp
     io/read.cpp
     io/write.cpp
 
-    text/Text.cpp
-    text/TextLayout.cpp
-    text/GpuLayoutTechnique.cpp
     text/CpuLayoutTechnique.cpp
+    text/GpuLayoutTechnique.cpp
     text/Font.cpp
+    text/StandardLayout.cpp
+    text/Text.cpp
 
     traversals/ArrayState.cpp
     traversals/RecordTraversal.cpp
@@ -134,6 +147,22 @@ set(SOURCES
     raytracing/TopLevelAccelerationStructure.cpp
     raytracing/TraceRays.cpp
 
+    rtx/DrawMeshTasks.cpp
+    rtx/DrawMeshTasksIndirect.cpp
+    rtx/DrawMeshTasksIndirectCount.cpp
+
+    ui/UIEvent.cpp
+    ui/ApplicationEvent.cpp
+    ui/KeyEvent.cpp
+    ui/TouchEvent.cpp
+    ui/PointerEvent.cpp
+    ui/ScrollWheelEvent.cpp
+    ui/WindowEvent.cpp
+    ui/RecordEvents.cpp
+    ui/CollectEvents.cpp
+    ui/ShiftEventTime.cpp
+    ui/PlayEvents.cpp
+    ui/PrintEvents.cpp
 
     vk/CommandBuffer.cpp
     vk/CommandPool.cpp
@@ -141,6 +170,7 @@ set(SOURCES
     vk/ShaderCompiler.cpp
     vk/DescriptorPool.cpp
     vk/Device.cpp
+    vk/DeviceFeatures.cpp
     vk/DeviceMemory.cpp
     vk/Extensions.cpp
     vk/Fence.cpp
@@ -178,17 +208,20 @@ if (glslang_FOUND)
     set(CMAKE_REQUIRED_LIBRARIES ${glslang_LIBRARY})
     set(CMAKE_REQUIRED_INCLUDES ${glslang_INCLUDE_DIR})
 
-    check_cxx_source_runs("
-        #include <glslang/Include/ResourceLimits.h>
-        int main()
-        {
-            TBuiltInResource resource;
-            resource.maxDualSourceDrawBuffersEXT = 0;
-            return 0;
-        }
-    " GLSLANG_ResourceLimits_maxDualSourceDrawBuffersEXT)
+    if (NOT GLSLANG_ResourceLimits_maxDualSourceDrawBuffersEXT)
+        check_cxx_source_runs("
+            #include <glslang/Include/ResourceLimits.h>
 
-    # check whehther glslang/build_info.h exists
+            int main()
+            {
+                TBuiltInResource resource;
+                resource.maxDualSourceDrawBuffersEXT = 0;
+                return 0;
+            }
+        " GLSLANG_ResourceLimits_maxDualSourceDrawBuffersEXT)
+    endif()
+
+    # check whether glslang/build_info.h exists
     if (GLSLANG_ResourceLimits_maxDualSourceDrawBuffersEXT)
         set(EXTRA_DEFINES ${EXTRA_DEFINES} "GLSLANG_ResourceLimits_maxDualSourceDrawBuffersEXT")
     endif()
@@ -243,11 +276,17 @@ if(MSVC)
     endmacro()
 
     SET_OUTPUT_DIR_PROPERTY(vsg "")
-	
+
     option(ENABLE_MP_FLAG "Turning on this option will add the multi-processor flag in MSVC for VSG and it's included projects" ON)
-	
+
     if(ENABLE_MP_FLAG)
         target_compile_options(vsg PRIVATE "/MP")
+    endif()
+
+    option(DISABLE_CHECKED_ITERATORS "Turning on this option will disable checked iterators in debug mode for visual studio. All imported projects must adhere to this requirement" OFF)
+
+    if(DISABLE_CHECKED_ITERATORS)
+        target_compile_definitions(vsg PUBLIC "_ITERATOR_DEBUG_LEVEL=0")
     endif()
 
 endif()

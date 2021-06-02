@@ -36,6 +36,10 @@ namespace vsg
     class MatrixTransform;
     class Geometry;
     class VertexIndexDraw;
+    class DepthSorted;
+    class Bin;
+    class Switch;
+    class MaskGroup;
 
     // forward declare vulkan classes
     class Command;
@@ -69,6 +73,11 @@ namespace vsg
     class DynamicState;
     class ResourceHints;
     class ClearAttachments;
+
+    // forward declare rtx classes
+    class DrawMeshTasks;
+    class DrawMeshTasksIndirect;
+    class DrawMeshTasksIndirectCount;
 
     // forward declare ui events classes
     class UIEvent;
@@ -105,6 +114,9 @@ namespace vsg
     {
     public:
         Visitor();
+
+        uint32_t traversalMask = 0xffffffff;
+        uint32_t overrideMask = 0x0;
 
         virtual void apply(Object&);
         virtual void apply(Objects&);
@@ -221,6 +233,10 @@ namespace vsg
         virtual void apply(MatrixTransform&);
         virtual void apply(Geometry&);
         virtual void apply(VertexIndexDraw&);
+        virtual void apply(DepthSorted&);
+        virtual void apply(Bin&);
+        virtual void apply(Switch&);
+        virtual void apply(MaskGroup&);
 
         // Vulkan nodes
         virtual void apply(Command&);
@@ -254,6 +270,11 @@ namespace vsg
         virtual void apply(Draw&);
         virtual void apply(DrawIndexed&);
         virtual void apply(ClearAttachments&);
+
+        // rtx classes
+        virtual void apply(DrawMeshTasks&);
+        virtual void apply(DrawMeshTasksIndirect&);
+        virtual void apply(DrawMeshTasksIndirectCount&);
 
         // ui events
         virtual void apply(UIEvent&);

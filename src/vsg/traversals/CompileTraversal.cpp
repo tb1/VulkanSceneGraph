@@ -14,11 +14,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsg/commands/Command.h>
 #include <vsg/commands/Commands.h>
+#include <vsg/nodes/Bin.h>
+#include <vsg/nodes/DepthSorted.h>
 #include <vsg/nodes/Geometry.h>
 #include <vsg/nodes/Group.h>
 #include <vsg/nodes/LOD.h>
 #include <vsg/nodes/PagedLOD.h>
 #include <vsg/nodes/QuadGroup.h>
+#include <vsg/state/MultisampleState.h>
 #include <vsg/state/StateGroup.h>
 #include <vsg/viewer/CommandGraph.h>
 #include <vsg/viewer/RenderGraph.h>
@@ -27,12 +30,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/vk/RenderPass.h>
 #include <vsg/vk/State.h>
 
+#include <iostream>
+
 using namespace vsg;
 
 /////////////////////////////////////////////////////////////////////
 //
 // CollectDescriptorStats
 //
+CollectDescriptorStats::CollectDescriptorStats()
+{
+    binStack.push(BinDetails{});
+}
+
 void CollectDescriptorStats::apply(const Object& object)
 {
     object.traverse(*this);
@@ -56,7 +66,7 @@ void CollectDescriptorStats::apply(const ResourceHints& resourceHints)
 {
     if (resourceHints.maxSlot > maxSlot) maxSlot = resourceHints.maxSlot;
 
-    if (!resourceHints.descriptorPoolSizes.empty() || resourceHints.numDescriptorSets > 9)
+    if (!resourceHints.descriptorPoolSizes.empty() || resourceHints.numDescriptorSets > 0)
     {
         externalNumDescriptorSets += resourceHints.numDescriptorSets;
 
@@ -134,9 +144,37 @@ void CollectDescriptorStats::apply(const Descriptor& descriptor)
 
 void CollectDescriptorStats::apply(const View& view)
 {
-    views.insert(&view);
+    if (auto itr = views.find(&view); itr != views.end())
+    {
+        binStack.push(itr->second);
+    }
+    else
+    {
+        binStack.push(BinDetails{static_cast<uint32_t>(views.size()), {}, {}});
+    }
 
     view.traverse(*this);
+
+    for (auto& bin : view.bins)
+    {
+        binStack.top().bins.insert(bin);
+    }
+
+    views[&view] = binStack.top();
+
+    binStack.pop();
+}
+
+void CollectDescriptorStats::apply(const DepthSorted& depthSorted)
+{
+    binStack.top().indices.insert(depthSorted.binNumber);
+
+    depthSorted.traverse(*this);
+}
+
+void CollectDescriptorStats::apply(const Bin& bin)
+{
+    binStack.top().bins.insert(&bin);
 }
 
 uint32_t CollectDescriptorStats::computeNumDescriptorSets() const
@@ -161,6 +199,9 @@ DescriptorPoolSizes CollectDescriptorStats::computeDescriptorPoolSizes() const
 CompileTraversal::CompileTraversal(Device* in_device, BufferPreferences bufferPreferences) :
     context(in_device, bufferPreferences)
 {
+    auto queueFamily = in_device->getPhysicalDevice()->getQueueFamily(VK_QUEUE_GRAPHICS_BIT);
+    context.commandPool = vsg::CommandPool::create(in_device, queueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    context.graphicsQueue = in_device->getQueue(queueFamily);
 }
 
 CompileTraversal::CompileTraversal(Window* window, ViewportState* viewport, BufferPreferences bufferPreferences) :
@@ -169,7 +210,7 @@ CompileTraversal::CompileTraversal(Window* window, ViewportState* viewport, Buff
     auto device = window->getDevice();
     auto queueFamily = device->getPhysicalDevice()->getQueueFamily(VK_QUEUE_GRAPHICS_BIT);
     context.renderPass = window->getOrCreateRenderPass();
-    context.commandPool = vsg::CommandPool::create(device, queueFamily);
+    context.commandPool = vsg::CommandPool::create(device, queueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     context.graphicsQueue = device->getQueue(queueFamily);
 
     if (viewport) context.defaultPipelineStates.emplace_back(viewport);

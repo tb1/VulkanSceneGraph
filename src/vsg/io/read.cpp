@@ -11,7 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsg/io/ObjectCache.h>
-#include <vsg/io/ReaderWriter_vsg.h>
+#include <vsg/io/VSG.h>
 #include <vsg/io/read.h>
 
 #include <vsg/threading/OperationThreads.h>
@@ -21,16 +21,19 @@ using namespace vsg;
 ref_ptr<Object> vsg::read(const Path& filename, ref_ptr<const Options> options)
 {
     auto read_file = [&]() -> ref_ptr<Object> {
-        if (options && options->readerWriter)
+        if (options && !options->readerWriters.empty())
         {
-            auto object = options->readerWriter->read(filename, options);
-            if (object) return object;
+            for (auto& readerWriter : options->readerWriters)
+            {
+                auto object = readerWriter->read(filename, options);
+                if (object) return object;
+            }
         }
 
         auto ext = vsg::fileExtension(filename);
         if (ext == "vsga" || ext == "vsgt" || ext == "vsgb")
         {
-            ReaderWriter_vsg rw;
+            VSG rw;
             return rw.read(filename, options);
         }
         else
@@ -125,4 +128,32 @@ PathObjects vsg::read(const Paths& filenames, ref_ptr<const Options> options)
     }
 
     return entries;
+}
+
+ref_ptr<Object> vsg::read(std::istream& fin, ref_ptr<const Options> options)
+{
+    if (options && !options->readerWriters.empty())
+    {
+        for (auto& readerWriter : options->readerWriters)
+        {
+            auto object = readerWriter->read(fin, options);
+            if (object) return object;
+        }
+    }
+
+    return {};
+}
+
+ref_ptr<Object> vsg::read(const uint8_t* ptr, size_t size, ref_ptr<const Options> options)
+{
+    if (options && !options->readerWriters.empty())
+    {
+        for (auto& readerWriter : options->readerWriters)
+        {
+            auto object = readerWriter->read(ptr, size, options);
+            if (object) return object;
+        }
+    }
+
+    return {};
 }

@@ -47,15 +47,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/maths/vec4.h>
 
 // Node header files
+#include <vsg/nodes/Bin.h>
 #include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/CullNode.h>
+#include <vsg/nodes/DepthSorted.h>
 #include <vsg/nodes/Geometry.h>
 #include <vsg/nodes/Group.h>
 #include <vsg/nodes/LOD.h>
+#include <vsg/nodes/MaskGroup.h>
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/Node.h>
 #include <vsg/nodes/PagedLOD.h>
 #include <vsg/nodes/QuadGroup.h>
+#include <vsg/nodes/Switch.h>
 #include <vsg/nodes/VertexIndexDraw.h>
 
 // Commands header files
@@ -84,25 +88,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/state/Buffer.h>
 #include <vsg/state/BufferInfo.h>
 #include <vsg/state/BufferView.h>
+#include <vsg/state/ColorBlendState.h>
 #include <vsg/state/ComputePipeline.h>
+#include <vsg/state/DepthStencilState.h>
 #include <vsg/state/Descriptor.h>
 #include <vsg/state/DescriptorBuffer.h>
 #include <vsg/state/DescriptorImage.h>
 #include <vsg/state/DescriptorSet.h>
 #include <vsg/state/DescriptorSetLayout.h>
 #include <vsg/state/DescriptorTexelBufferView.h>
+#include <vsg/state/DynamicState.h>
 #include <vsg/state/GraphicsPipeline.h>
-#include <vsg/state/GraphicsPipelineStates.h>
 #include <vsg/state/Image.h>
 #include <vsg/state/ImageInfo.h>
 #include <vsg/state/ImageView.h>
+#include <vsg/state/InputAssemblyState.h>
+#include <vsg/state/MultisampleState.h>
 #include <vsg/state/PipelineLayout.h>
+#include <vsg/state/RasterizationState.h>
 #include <vsg/state/ResourceHints.h>
 #include <vsg/state/Sampler.h>
 #include <vsg/state/ShaderModule.h>
 #include <vsg/state/ShaderStage.h>
 #include <vsg/state/StateCommand.h>
 #include <vsg/state/StateGroup.h>
+#include <vsg/state/TessellationState.h>
+#include <vsg/state/VertexInputState.h>
+#include <vsg/state/ViewportState.h>
 #include <vsg/state/material.h>
 
 // Traversal header files
@@ -126,10 +138,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // User Interface abstraction header files
 #include <vsg/ui/ApplicationEvent.h>
+#include <vsg/ui/CollectEvents.h>
 #include <vsg/ui/KeyEvent.h>
+#include <vsg/ui/PlayEvents.h>
 #include <vsg/ui/PointerEvent.h>
 #include <vsg/ui/PrintEvents.h>
+#include <vsg/ui/RecordEvents.h>
 #include <vsg/ui/ScrollWheelEvent.h>
+#include <vsg/ui/ShiftEventTime.h>
 #include <vsg/ui/TouchEvent.h>
 #include <vsg/ui/UIEvent.h>
 #include <vsg/ui/WindowEvent.h>
@@ -160,6 +176,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/vk/Context.h>
 #include <vsg/vk/DescriptorPool.h>
 #include <vsg/vk/Device.h>
+#include <vsg/vk/DeviceFeatures.h>
 #include <vsg/vk/DeviceMemory.h>
 #include <vsg/vk/Extensions.h>
 #include <vsg/vk/Fence.h>
@@ -190,7 +207,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/io/Options.h>
 #include <vsg/io/Output.h>
 #include <vsg/io/ReaderWriter.h>
-#include <vsg/io/ReaderWriter_vsg.h>
+#include <vsg/io/VSG.h>
 #include <vsg/io/read.h>
 #include <vsg/io/stream.h>
 #include <vsg/io/write.h>
@@ -206,11 +223,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/text/Font.h>
 #include <vsg/text/GlyphMetrics.h>
 #include <vsg/text/GpuLayoutTechnique.h>
+#include <vsg/text/StandardLayout.h>
 #include <vsg/text/Text.h>
 #include <vsg/text/TextLayout.h>
 #include <vsg/text/TextTechnique.h>
 
-// Raytracing header files
+// Ray tracing header files
 #include <vsg/raytracing/AccelerationGeometry.h>
 #include <vsg/raytracing/AccelerationStructure.h>
 #include <vsg/raytracing/BottomLevelAccelerationStructure.h>
@@ -220,3 +238,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/raytracing/RayTracingShaderGroup.h>
 #include <vsg/raytracing/TopLevelAccelerationStructure.h>
 #include <vsg/raytracing/TraceRays.h>
+
+// RTX mesh  header files
+#include <vsg/rtx/DrawMeshTasks.h>
+#include <vsg/rtx/DrawMeshTasksIndirect.h>
+#include <vsg/rtx/DrawMeshTasksIndirectCommand.h>
+#include <vsg/rtx/DrawMeshTasksIndirectCount.h>

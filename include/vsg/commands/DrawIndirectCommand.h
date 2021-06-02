@@ -12,13 +12,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/vk/CommandBuffer.h>
-#include <vsg/state/BufferInfo.h>
 #include <vsg/commands/Command.h>
+#include <vsg/state/BufferInfo.h>
+#include <vsg/vk/CommandBuffer.h>
 
 namespace vsg
 {
-    /// Equivilant to VkDrawIndirectCommand that adds read/write support
+    /// Equivalent to VkDrawIndirectCommand that adds read/write support
     struct DrawIndirectCommand
     {
         uint32_t vertexCount;

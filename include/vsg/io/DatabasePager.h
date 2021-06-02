@@ -88,7 +88,7 @@ namespace vsg
     };
     VSG_type_name(vsg::DatabaseQueue);
 
-    class DatabasePager : public Inherit<Object, DatabasePager>
+    class VSG_DECLSPEC DatabasePager : public Inherit<Object, DatabasePager>
     {
     public:
         DatabasePager();
@@ -114,7 +114,8 @@ namespace vsg
 
         ref_ptr<CulledPagedLODs> culledPagedLODs;
 
-        uint32_t targetMaxNumPagedLODWithHighResSubgraphs = 10000;
+        /// for systems for smaller GPU memory limits you may need to reduce the targetMaxNumPagedLODWithHighResSubgraphs to keep memory usage within available limits.
+        uint32_t targetMaxNumPagedLODWithHighResSubgraphs = 1500;
 
         std::mutex pendingPagedLODMutex;
 

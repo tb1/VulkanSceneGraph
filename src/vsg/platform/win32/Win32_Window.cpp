@@ -348,7 +348,7 @@ Win32_Window::Win32_Window(vsg::ref_ptr<WindowTraits> traits) :
         displayDevices.push_back(displayDevice);
     }
 
-    // assume a trais->screenNum of < 0 will default to screen 0
+    // assume a traits->screenNum of < 0 will default to screen 0
     int screenNum = traits->screenNum < 0 ? 0 : traits->screenNum;
     if (screenNum >= displayDevices.size()) throw Exception{"Error: vsg::Win32_Window::Win32_Window(...) failed to create Window, screenNum is out of range.", VK_ERROR_INVALID_EXTERNAL_HANDLE};
 
@@ -430,6 +430,12 @@ Win32_Window::Win32_Window(vsg::ref_ptr<WindowTraits> traits) :
 
     _extent2D.width = finalWidth;
     _extent2D.height = finalHeight;
+
+    // assign dimensions
+    traits->x = windowRect.left;
+    traits->y = windowRect.top;
+    traits->width = finalWidth;
+    traits->height = finalHeight;
 
     ShowWindow(_window, SW_SHOW);
     SetForegroundWindow(_window);

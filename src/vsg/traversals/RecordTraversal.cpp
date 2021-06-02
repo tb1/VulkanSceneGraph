@@ -15,13 +15,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/io/DatabasePager.h>
 #include <vsg/io/Options.h>
 #include <vsg/maths/plane.h>
+#include <vsg/nodes/Bin.h>
 #include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/CullNode.h>
+#include <vsg/nodes/DepthSorted.h>
 #include <vsg/nodes/Group.h>
 #include <vsg/nodes/LOD.h>
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/PagedLOD.h>
 #include <vsg/nodes/QuadGroup.h>
+#include <vsg/nodes/Switch.h>
 #include <vsg/state/StateGroup.h>
 #include <vsg/threading/atomics.h>
 #include <vsg/traversals/RecordTraversal.h>
@@ -37,12 +40,26 @@ using namespace vsg;
 
 #define INLINE_TRAVERSE 0
 
-RecordTraversal::RecordTraversal(CommandBuffer* commandBuffer, uint32_t maxSlot, FrameStamp* fs) :
-    _frameStamp(fs),
-    _state(new State(commandBuffer, maxSlot))
+RecordTraversal::RecordTraversal(CommandBuffer* in_commandBuffer, uint32_t in_maxSlot, std::set<Bin*> in_bins) :
+    _state(new State(in_commandBuffer, in_maxSlot))
 {
     if (_frameStamp) _frameStamp->ref();
     if (_state) _state->ref();
+
+    _minimumBinNumber = 0;
+    int32_t maximumBinNumber = 0;
+    for (auto& bin : in_bins)
+    {
+        if (bin->binNumber < _minimumBinNumber) _minimumBinNumber = bin->binNumber;
+        if (bin->binNumber > maximumBinNumber) maximumBinNumber = bin->binNumber;
+    }
+
+    _bins.resize((maximumBinNumber - _minimumBinNumber) + 1);
+
+    for (auto& bin : in_bins)
+    {
+        _bins[bin->binNumber - _minimumBinNumber] = bin;
+    }
 }
 
 RecordTraversal::~RecordTraversal()
@@ -81,6 +98,14 @@ void RecordTraversal::setDatabasePager(DatabasePager* dp)
 void RecordTraversal::setProjectionAndViewMatrix(const dmat4& projMatrix, const dmat4& viewMatrix)
 {
     _state->setProjectionAndViewMatrix(projMatrix, viewMatrix);
+}
+
+void RecordTraversal::clearBins()
+{
+    for (auto& bin : _bins)
+    {
+        if (bin) bin->clear();
+    }
 }
 
 void RecordTraversal::apply(const Object& object)
@@ -126,7 +151,7 @@ void RecordTraversal::apply(const LOD& lod)
     auto distance = std::abs(mv[0][2] * sphere.x + mv[1][2] * sphere.y + mv[2][2] * sphere.z + mv[3][2]);
     auto rf = sphere.r * f;
 
-    for (auto child : lod.getChildren())
+    for (auto& child : lod.getChildren())
     {
         bool child_visible = rf > (child.minimumScreenHeightRatio * distance);
         if (child_visible)
@@ -223,38 +248,43 @@ void RecordTraversal::apply(const PagedLOD& plod)
 
 void RecordTraversal::apply(const CullGroup& cullGroup)
 {
-#if 0
-    // no culling
-    cullGroup.traverse(*this);
-#else
     if (_state->intersect(cullGroup.getBound()))
     {
         //std::cout<<"Passed node"<<std::endl;
         cullGroup.traverse(*this);
     }
-    else
-    {
-        //std::cout<<"Culling node"<<std::endl;
-    }
-#endif
 }
 
 void RecordTraversal::apply(const CullNode& cullNode)
 {
-#if 0
-    // no culling
-    cullNode.traverse(*this);
-#else
     if (_state->intersect(cullNode.getBound()))
     {
         //std::cout<<"Passed node"<<std::endl;
         cullNode.traverse(*this);
     }
-    else
+}
+
+void RecordTraversal::apply(const DepthSorted& depthSorted)
+{
+    if (_state->intersect(depthSorted.bound))
     {
-        //std::cout<<"Culling node"<<std::endl;
+        const auto& mv = _state->modelviewMatrixStack.top();
+        auto& center = depthSorted.bound.center;
+        auto distance = -(mv[0][2] * center.x + mv[1][2] * center.y + mv[2][2] * center.z + mv[3][2]);
+
+        _bins[depthSorted.binNumber - _minimumBinNumber]->add(_state, distance, depthSorted.child);
     }
-#endif
+}
+
+void RecordTraversal::apply(const Switch& sw)
+{
+    for (auto& child : sw.children)
+    {
+        if (child.enabled)
+        {
+            child.node->accept(*this);
+        }
+    }
 }
 
 void RecordTraversal::apply(const StateGroup& stateGroup)
@@ -324,7 +354,27 @@ void RecordTraversal::apply(const View& view)
 {
     _state->_commandBuffer->viewID = view.viewID;
 
-    //std::cout<<"RecordTraversal::apply(const View& view) "<<view.viewID<<std::endl;
+    // cache the previous bins
+    int32_t cache_minimumBinNumber = _minimumBinNumber;
+    decltype(_bins) cache_bins;
+    cache_bins.swap(_bins);
+
+    // assign and clear the View's bins
+    int32_t min_binNumber = 0;
+    int32_t max_binNumber = 0;
+    for (auto& bin : view.bins)
+    {
+        if (bin->binNumber < min_binNumber) min_binNumber = bin->binNumber;
+        if (bin->binNumber > max_binNumber) max_binNumber = bin->binNumber;
+    }
+
+    _minimumBinNumber = min_binNumber;
+    _bins.resize(max_binNumber - min_binNumber + 1);
+    for (auto& bin : view.bins)
+    {
+        _bins[bin->binNumber] = bin;
+        bin->clear();
+    }
 
     if (view.camera)
     {
@@ -341,4 +391,13 @@ void RecordTraversal::apply(const View& view)
     {
         view.traverse(*this);
     }
+
+    for (auto& bin : view.bins)
+    {
+        bin->accept(*this);
+    }
+
+    // swap back previous bin setup.
+    _minimumBinNumber = cache_minimumBinNumber;
+    cache_bins.swap(_bins);
 }

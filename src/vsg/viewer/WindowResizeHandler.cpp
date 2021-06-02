@@ -37,10 +37,11 @@ void WindowResizeHandler::scale_rect(VkRect2D& rect)
     rect.extent.height = static_cast<uint32_t>(scale_parameter(edge_y, previous_extent.height, new_extent.height) - rect.offset.y);
 }
 
-bool WindowResizeHandler::visit(Object* object)
+bool WindowResizeHandler::visit(const Object* object, uint32_t index)
 {
-    if (visited.count(object) != 0) return false;
-    visited.insert(object);
+    decltype(visited)::value_type objectIndex(object, index);
+    if (visited.count(objectIndex) != 0) return false;
+    visited.insert(objectIndex);
     return true;
 }
 
@@ -48,7 +49,10 @@ void WindowResizeHandler::apply(vsg::BindGraphicsPipeline& bindPipeline)
 {
     GraphicsPipeline* graphicsPipeline = bindPipeline.pipeline;
 
-    if (!visit(graphicsPipeline)) return;
+    if (!visit(graphicsPipeline, context->viewID))
+    {
+        return;
+    }
 
     if (graphicsPipeline)
     {
@@ -82,7 +86,7 @@ void WindowResizeHandler::apply(vsg::Object& object)
 
 void WindowResizeHandler::apply(vsg::StateGroup& sg)
 {
-    if (!visit(&sg)) return;
+    if (!visit(&sg, context->viewID)) return;
 
     for (auto& command : sg.getStateCommands())
     {

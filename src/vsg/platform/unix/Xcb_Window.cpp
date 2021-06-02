@@ -75,7 +75,7 @@ namespace vsgXcb
             return hints;
         }
 
-        static MotifHints window(bool resize=true, bool move=true, bool close=true, bool minimize=true)
+        static MotifHints window(bool resize=true, bool move=true, bool close=true, bool minimize=true, bool maximize=true)
         {
             MotifHints hints;
             hints.flags = FLAGS_DECORATIONS | FLAGS_FUNCTIONS;
@@ -84,6 +84,7 @@ namespace vsgXcb
             if (move) hints.functions |= FUNC_MOVE;
             if (close) hints.functions |= FUNC_CLOSE;
             if (minimize) hints.functions |= FUNC_MINIMUMSIZE;
+            if (maximize) hints.functions |= FUNC_MAXIMUMSIZE;
             hints.decorations = DECOR_ALL;
             return hints;
         }
@@ -200,6 +201,52 @@ vsg::KeySymbol KeyboardMap::getKeySymbol(uint16_t keycode, uint16_t modifier)
     if (itr = _keycodeMap.find(KeycodeModifier(keycode, index)); itr!=_keycodeMap.end()) return itr->second;
     return vsg::KEY_Undefined;
 }
+
+vsg::KeyModifier KeyboardMap::getKeyModifier(vsg::KeySymbol keySym, uint16_t modifier, bool pressed)
+{
+    // values from keysymbdefs.h
+    #define XK_Shift_L                       0xffe1
+    #define XK_Shift_R                       0xffe2
+    #define XK_Control_L                     0xffe3
+    #define XK_Control_R                     0xffe4
+    #define XK_Caps_Lock                     0xffe5
+    #define XK_Shift_Lock                    0xffe6
+
+    #define XK_Meta_L                        0xffe7
+    #define XK_Meta_R                        0xffe8
+    #define XK_Alt_L                         0xffe9
+    #define XK_Alt_R                         0xffea
+    #define XK_Super_L                       0xffeb
+    #define XK_Super_R                       0xffec
+    #define XK_Hyper_L                       0xffed
+    #define XK_Hyper_R                       0xffee
+
+    if (keySym >= XK_Shift_L && keySym <= XK_Hyper_R)
+    {
+        uint16_t mask = 0;
+        switch(keySym)
+        {
+            case(XK_Shift_L):
+            case(XK_Shift_R): mask = XCB_KEY_BUT_MASK_SHIFT; break;
+            case(XK_Control_L):
+            case(XK_Control_R): mask = XCB_KEY_BUT_MASK_CONTROL; break;
+            case(XK_Alt_L):
+            case(XK_Alt_R): mask = XCB_KEY_BUT_MASK_MOD_1; break;
+            case(XK_Meta_L):
+            case(XK_Meta_R): mask = XCB_KEY_BUT_MASK_MOD_2; break;
+            case(XK_Super_L):
+            case(XK_Super_R): mask = XCB_KEY_BUT_MASK_MOD_4; break;
+            case(XK_Hyper_L):
+            case(XK_Hyper_R): mask = XCB_KEY_BUT_MASK_MOD_3; break;
+            default: break;
+        }
+        if (pressed) modifier = (modifier | mask);
+        else modifier = (modifier & ~mask);
+    }
+
+    return vsg::KeyModifier(modifier);
+}
+
 void KeyboardMap::add(uint16_t keycode, uint16_t modifier, KeySymbol key)
 {
     _keycodeMap[KeycodeModifier(keycode, modifier)] = key;
@@ -417,6 +464,12 @@ Xcb_Window::Xcb_Window(vsg::ref_ptr<WindowTraits> traits) :
         _extent2D.width = geometry_reply->width;
         _extent2D.height = geometry_reply->height;
         free(geometry_reply);
+
+        // assign dimensions
+        traits->x = geometry_reply->x;
+        traits->y = geometry_reply->y;
+        traits->width = geometry_reply->width;
+        traits->height = geometry_reply->height;
     }
 
     traits->nativeWindow = _window;
@@ -579,7 +632,9 @@ bool Xcb_Window::pollEvents(UIEvents& events)
             vsg::clock::time_point event_time = _first_xcb_time_point + std::chrono::milliseconds(key_press->time - _first_xcb_timestamp);
             vsg::KeySymbol keySymbol = _keyboard->getKeySymbol(key_press->detail, 0);
             vsg::KeySymbol keySymbolModified = _keyboard->getKeySymbol(key_press->detail, key_press->state);
-            events.emplace_back(new vsg::KeyPressEvent(this, event_time, keySymbol, keySymbolModified, KeyModifier(key_press->state), 0));
+            vsg::KeyModifier keyModifier = _keyboard->getKeyModifier(keySymbol, key_press->state, true);
+
+            events.emplace_back(new vsg::KeyPressEvent(this, event_time, keySymbol, keySymbolModified, keyModifier, 0));
 
             break;
         }
@@ -590,7 +645,9 @@ bool Xcb_Window::pollEvents(UIEvents& events)
             vsg::clock::time_point event_time = _first_xcb_time_point + std::chrono::milliseconds(key_release->time - _first_xcb_timestamp);
             vsg::KeySymbol keySymbol = _keyboard->getKeySymbol(key_release->detail, 0);
             vsg::KeySymbol keySymbolModified = _keyboard->getKeySymbol(key_release->detail, key_release->state);
-            events.emplace_back(new vsg::KeyReleaseEvent(this, event_time, keySymbol, keySymbolModified, KeyModifier(key_release->state), 0));
+            vsg::KeyModifier keyModifier = _keyboard->getKeyModifier(keySymbol, key_release->state, false);
+
+            events.emplace_back(new vsg::KeyReleaseEvent(this, event_time, keySymbol, keySymbolModified, keyModifier, 0));
 
             break;
         }
@@ -600,18 +657,23 @@ bool Xcb_Window::pollEvents(UIEvents& events)
 
             vsg::clock::time_point event_time = _first_xcb_time_point + std::chrono::milliseconds(button_press->time - _first_xcb_timestamp);
 
-            // X11/Xvb treat scroll wheel up/down as button 4 and 5 so handle these as such
-            if (button_press->detail==4)
+            if (button_press->same_screen)
             {
-                events.emplace_back(new vsg::ScrollWheelEvent(this, event_time, vsg::vec3(0.0f, 1.0f, 0.0f)));
-            }
-            else if (button_press->detail==5)
-            {
-                events.emplace_back(new vsg::ScrollWheelEvent(this, event_time, vsg::vec3(0.0f, -1.0f, 0.0f)));
-            }
-            else
-            {
-                events.emplace_back(new vsg::ButtonPressEvent(this, event_time, button_press->event_x, button_press->event_y, vsg::ButtonMask(button_press->state), button_press->detail));
+                // X11/Xvb treat scroll wheel up/down as button 4 and 5 so handle these as such
+                if (button_press->detail==4)
+                {
+                    events.emplace_back(new vsg::ScrollWheelEvent(this, event_time, vsg::vec3(0.0f, 1.0f, 0.0f)));
+                }
+                else if (button_press->detail==5)
+                {
+                    events.emplace_back(new vsg::ScrollWheelEvent(this, event_time, vsg::vec3(0.0f, -1.0f, 0.0f)));
+                }
+                else
+                {
+                    uint32_t pressedButtoMask = 1 << (7+button_press->detail);
+                    uint32_t newButtonMask = uint32_t(button_press->state) | pressedButtoMask;
+                    events.emplace_back(new vsg::ButtonPressEvent(this, event_time, button_press->event_x, button_press->event_y, vsg::ButtonMask(newButtonMask), button_press->detail));
+                }
             }
 
             break;
@@ -621,10 +683,12 @@ bool Xcb_Window::pollEvents(UIEvents& events)
             auto button_release = reinterpret_cast<const xcb_button_release_event_t*>(event);
 
             // ignore button 4 and 5 as X11/Xcb use them as up/down scroll wheel events
-            if (button_release->detail !=4 && button_release->detail !=5)
+            if (button_release->same_screen && button_release->detail !=4 && button_release->detail !=5)
             {
                 vsg::clock::time_point event_time = _first_xcb_time_point + std::chrono::milliseconds(button_release->time - _first_xcb_timestamp);
-                events.emplace_back(new vsg::ButtonReleaseEvent(this, event_time, button_release->event_x, button_release->event_y, vsg::ButtonMask(button_release->state), button_release->detail));
+                uint32_t releasedButtoMask = 1 << (7+button_release->detail);
+                uint32_t newButtonMask = uint32_t(button_release->state) & ~releasedButtoMask;
+                events.emplace_back(new vsg::ButtonReleaseEvent(this, event_time, button_release->event_x, button_release->event_y, vsg::ButtonMask(newButtonMask), button_release->detail));
             }
 
             break;
@@ -632,9 +696,11 @@ bool Xcb_Window::pollEvents(UIEvents& events)
         case (XCB_MOTION_NOTIFY):
         {
             auto motion_notify = reinterpret_cast<const xcb_motion_notify_event_t*>(event);
-
-            vsg::clock::time_point event_time = _first_xcb_time_point + std::chrono::milliseconds(motion_notify->time - _first_xcb_timestamp);
-            events.emplace_back(new vsg::MoveEvent(this, event_time, motion_notify->event_x, motion_notify->event_y, vsg::ButtonMask(motion_notify->state)));
+            if (motion_notify->same_screen)
+            {
+                vsg::clock::time_point event_time = _first_xcb_time_point + std::chrono::milliseconds(motion_notify->time - _first_xcb_timestamp);
+                events.emplace_back(new vsg::MoveEvent(this, event_time, motion_notify->event_x, motion_notify->event_y, vsg::ButtonMask(motion_notify->state)));
+            }
 
             break;
         }

@@ -32,6 +32,36 @@ namespace vsg
     constexpr float degrees(float radians) noexcept { return radians * (180.0f / PIf); }
     constexpr double degrees(double radians) noexcept { return radians * (180.0 / PI); }
 
+    /// Hermite interpolation between edge0 and edge1
+    template<typename T>
+    T smoothstep(T edge0, T edge1, T x)
+    {
+        if (x <= edge0)
+            return edge0;
+        else if (x >= edge1)
+            return edge1;
+        double r = (x - edge0) / (edge1 - edge0);
+        return edge0 + (r * r * (3.0 - 2.0 * r)) * (edge1 - edge0);
+    }
+
+    /// Hermite interpolation between 0.0 and 1.0
+    template<typename T>
+    T smoothstep(T r)
+    {
+        if (r <= 0.0)
+            return 0.0;
+        else if (r >= 1.0)
+            return 1.0;
+        return r * r * (3.0 - 2.0 * r);
+    }
+
+    template<typename T>
+    T mix(T start, T end, T r)
+    {
+        T one_minus_r = 1.0 - r;
+        return start * one_minus_r + end * r;
+    }
+
     template<typename T>
     t_mat4<T> rotate(T angle_radians, T x, T y, T z)
     {
@@ -146,10 +176,10 @@ namespace vsg
     /// double matrix inversion with automatic selection of inverse_4x3 when appropriate, otherwise uses inverse_4x4
     extern VSG_DECLSPEC dmat4 inverse(const dmat4& m);
 
-    /// compute the bounding sphere that encploses a frustum defined by specified float ModelViewMatrixProjection
+    /// compute the bounding sphere that encloses a frustum defined by specified float ModelViewMatrixProjection
     extern VSG_DECLSPEC sphere computeFrustumBound(const mat4& m);
 
-    /// compute the bounding sphere that encploses a frustum defined by specified double ModelViewMatrixProjection
+    /// compute the bounding sphere that encloses a frustum defined by specified double ModelViewMatrixProjection
     extern VSG_DECLSPEC dsphere computeFrustumBound(const dmat4& m);
 
 } // namespace vsg

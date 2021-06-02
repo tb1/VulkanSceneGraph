@@ -25,33 +25,49 @@ namespace vsg
     class OperationThreads;
     class CommandLine;
 
+    using ReaderWriters = std::vector<ref_ptr<ReaderWriter>>;
+
     class VSG_DECLSPEC Options : public Inherit<Object, Options>
     {
     public:
         Options();
-        Options(ref_ptr<ReaderWriter> rw);
-        Options(const Options& options);
+        explicit Options(const Options& options);
+
+        template<typename... Args>
+        explicit Options(Args... args)
+        {
+            (add(args), ...);
+        }
 
         Options& operator=(const Options& rhs) = delete;
 
-        /// read command line options, assign values to this options object to later use wiht reading/writing files
+        /// read command line options, assign values to this options object to later use with reading/writing files
         virtual bool readOptions(CommandLine& arguments);
 
-        //ref_ptr<FileCache> fileCache;
+        void read(Input& input) override;
+        void write(Output& output) const override;
+
+        void add(ref_ptr<ReaderWriter> rw = {});
+        void add(const ReaderWriters& rws);
+
         ref_ptr<ObjectCache> objectCache;
-        ref_ptr<ReaderWriter> readerWriter;
+        ReaderWriters readerWriters;
         ref_ptr<OperationThreads> operationThreads;
 
         /// Hint to use when searching for Paths with vsg::findFile(filename, options);
         enum FindFileHint
         {
-            CHECK_ORIGINAL_FILENAME_EXISTS_FIRST, /// check the filename exists with it's original path after failing to find it in the Options::path list.
-            CHECK_ORIGINAL_FILENAME_EXISTS_LAST,  /// check the filename exists with it's original path after failing to find it in the Options::path list.
+            CHECK_ORIGINAL_FILENAME_EXISTS_FIRST, /// check the filename exists with it's original path before trying to find it in Options::paths.
+            CHECK_ORIGINAL_FILENAME_EXISTS_LAST,  /// check the filename exists with it's original path after failing to find it in Options::paths.
             ONLY_CHECK_PATHS                      /// only check the filename exists in the Options::paths
         };
         FindFileHint checkFilenameHint = CHECK_ORIGINAL_FILENAME_EXISTS_FIRST;
 
         Paths paths;
+        Path fileCache;
+
+        std::string extensionHint;
+        bool mapRGBtoRGBAHint = true;
 
     protected:
         virtual ~Options();

@@ -22,17 +22,16 @@ Options::Options()
 {
 }
 
-Options::Options(ref_ptr<ReaderWriter> rw) :
-    readerWriter(rw)
-{
-}
-
 Options::Options(const Options& options) :
     Inherit(),
-    //    fileCache(options.fileCache),
     objectCache(options.objectCache),
-    readerWriter(options.readerWriter),
-    operationThreads(options.operationThreads)
+    readerWriters(options.readerWriters),
+    operationThreads(options.operationThreads),
+    checkFilenameHint(options.checkFilenameHint),
+    paths(options.paths),
+    fileCache(options.fileCache),
+    extensionHint(options.extensionHint),
+    mapRGBtoRGBAHint(options.mapRGBtoRGBAHint)
 {
 }
 
@@ -40,10 +39,79 @@ Options::~Options()
 {
 }
 
+void Options::read(Input& input)
+{
+    Object::read(input);
+
+    input.readObject("objectCache", objectCache);
+
+    readerWriters.clear();
+    uint32_t count = input.readValue<uint32_t>("NumReaderWriters");
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        auto rw = input.readObject<ReaderWriter>("ReaderWriter");
+        if (rw) readerWriters.push_back(rw);
+    }
+
+    input.readObject("operationThreads", operationThreads);
+    input.readValue<uint32_t>("checkFilenameHint", checkFilenameHint);
+
+    paths.resize(input.readValue<uint32_t>("NumPaths"));
+    for (auto& path : paths)
+    {
+        input.read("path", path);
+    }
+
+    input.read("fileCache", fileCache);
+    input.read("extensionHint", extensionHint);
+    input.read("mapRGBtoRGBAHint", mapRGBtoRGBAHint);
+}
+
+void Options::write(Output& output) const
+{
+    Object::write(output);
+
+    output.writeObject("objectCache", objectCache);
+
+    output.writeValue<uint32_t>("NumReaderWriters", readerWriters.size());
+    for (auto& rw : readerWriters)
+    {
+        output.writeObject("ReaderWriter", rw);
+    }
+
+    output.writeObject("operationThreads", operationThreads);
+    output.writeValue<uint32_t>("checkFilenameHint", checkFilenameHint);
+
+    output.writeValue<uint32_t>("NumPaths", paths.size());
+    for (auto& path : paths)
+    {
+        output.write("path", path);
+    }
+
+    output.write("fileCache", fileCache);
+    output.write("extensionHint", extensionHint);
+    output.write("mapRGBtoRGBAHint", mapRGBtoRGBAHint);
+}
+
+void Options::add(ref_ptr<ReaderWriter> rw)
+{
+    if (rw) readerWriters.push_back(rw);
+}
+
+void Options::add(const ReaderWriters& rws)
+{
+    for (auto& rw : rws) add(rw);
+}
+
 bool Options::readOptions(CommandLine& arguments)
 {
-    if (readerWriter)
-        return readerWriter->readOptions(*this, arguments);
-    else
-        return false;
+    bool read = false;
+    for (auto& readerWriter : readerWriters)
+    {
+        if (readerWriter->readOptions(*this, arguments)) read = true;
+    }
+
+    if (arguments.read("--file-cache", fileCache)) read = true;
+
+    return read;
 }
