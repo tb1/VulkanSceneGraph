@@ -103,92 +103,94 @@ if (DOXYGEN_FOUND)
     )
 endif()
 
-# add clobber build target to clear all the non git registered files/directories
-add_custom_target(clobber
-    COMMAND git clean -d -f -x
-)
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    # add clobber build target to clear all the non git registered files/directories
+    add_custom_target(clobber
+        COMMAND git clean -d -f -x
+    )
 
-# automatically buil_all_h build target to generate the include/vsg/all.h from the headers in the include/vsg/* directories
-add_custom_target(build_all_h
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/build/build_all_h.cmake
-)
+    # automatically buil_all_h build target to generate the include/vsg/all.h from the headers in the include/vsg/* directories
+    add_custom_target(build_all_h
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/build/build_all_h.cmake
+    )
 
-# automatically buil_all_h build target to generate the include/vsg/all.h from the headers in the include/vsg/* directories
-add_custom_target(uninstall
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/build/uninstall.cmake
-)
+    # automatically buil_all_h build target to generate the include/vsg/all.h from the headers in the include/vsg/* directories
+    add_custom_target(uninstall
+        COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/build/uninstall.cmake
+    )
 
-# add cppcheck build target to provide static analysis of codebase
-find_program(CPPCHECK cppcheck)
-if (CPPCHECK)
-    file(RELATIVE_PATH PATH_TO_SOURCE ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
-    if (PATH_TO_SOURCE)
-        set(PATH_TO_SOURCE "${PATH_TO_SOURCE}/")
+    # add cppcheck build target to provide static analysis of codebase
+    find_program(CPPCHECK cppcheck)
+    if (CPPCHECK)
+        file(RELATIVE_PATH PATH_TO_SOURCE ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} )
+        if (PATH_TO_SOURCE)
+            set(PATH_TO_SOURCE "${PATH_TO_SOURCE}/")
+        endif()
+
+        include(ProcessorCount)
+        ProcessorCount(CPU_CORES)
+
+        set(CPPCHECK_SUPPRESION_LIST_FILE "${CMAKE_SOURCE_DIR}/build/cppcheck-suppression-list.txt")
+        set(CPPCHECK_SUPPRESION_LIST "--suppressions-list=${CPPCHECK_SUPPRESION_LIST_FILE}")
+        set(CPPCHECK_EXTRA_OPTIONS "" CACHE STRING "additional commndline options to use when invoking cppcheck")
+        add_custom_target(cppcheck
+            COMMAND ${CPPCHECK} -j ${CPU_CORES} --quiet --enable=style --language=c++ ${CPPCHECK_EXTRA_OPTIONS} ${CPPCHECK_SUPPRESION_LIST} ${PATH_TO_SOURCE}include/vsg/*/*.h ${PATH_TO_SOURCE}src/vsg/*/*.cpp -I ${PATH_TO_SOURCE}include/
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Static code analysis using cppcheck"
+        )
     endif()
 
-    include(ProcessorCount)
-    ProcessorCount(CPU_CORES)
+    # add clang-foramt build target to enforce a standard code style guide.
+    find_program(CLANGFORMAT clang-format)
+    if (CLANGFORMAT)
+        add_custom_target(clang-format
+            COMMAND ${CLANGFORMAT} -i ${CMAKE_SOURCE_DIR}/include/vsg/*/*.h ${CMAKE_SOURCE_DIR}/src/vsg/*/*.cpp
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Automated code format using clang-format"
+        )
+    endif()
 
-    set(CPPCHECK_SUPPRESION_LIST_FILE "${CMAKE_SOURCE_DIR}/build/cppcheck-suppression-list.txt")
-    set(CPPCHECK_SUPPRESION_LIST "--suppressions-list=${CPPCHECK_SUPPRESION_LIST_FILE}")
-    set(CPPCHECK_EXTRA_OPTIONS "" CACHE STRING "additional commndline options to use when invoking cppcheck")
-    add_custom_target(cppcheck
-        COMMAND ${CPPCHECK} -j ${CPU_CORES} --quiet --enable=style --language=c++ ${CPPCHECK_EXTRA_OPTIONS} ${CPPCHECK_SUPPRESION_LIST} ${PATH_TO_SOURCE}include/vsg/*/*.h ${PATH_TO_SOURCE}src/vsg/*/*.cpp -I ${PATH_TO_SOURCE}include/
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Static code analysis using cppcheck"
-    )
-endif()
+    option(MAINTAINER "Enable maintainer build methods, such as making git branches and tags." OFF)
+    if (MAINTAINER)
 
-# add clang-foramt build target to enforce a standard code style guide.
-find_program(CLANGFORMAT clang-format)
-if (CLANGFORMAT)
-    add_custom_target(clang-format
-        COMMAND ${CLANGFORMAT} -i ${CMAKE_SOURCE_DIR}/include/vsg/*/*.h ${CMAKE_SOURCE_DIR}/src/vsg/*/*.cpp
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Automated code format using clang-format"
-    )
-endif()
+        #
+        # Provide target for tagging a release
+        #
+        SET(BASE_NAME VulkanSceneGraph)
+        SET(VSG_BRANCH ${BASE_NAME}-${VSG_VERSION_MAJOR}.${VSG_VERSION_MINOR})
 
-option(MAINTAINER "Enable maintainer build methods, such as making git branches and tags." OFF)
-if (MAINTAINER)
+        SET(GITCOMMAND git)
 
-    #
-    # Provide target for tagging a release
-    #
-    SET(BASE_NAME VulkanSceneGraph)
-    SET(VSG_BRANCH ${BASE_NAME}-${VSG_VERSION_MAJOR}.${VSG_VERSION_MINOR})
+        IF   (VSG_RELEASE_CANDIDATE EQUAL 0)
+            SET(RELEASE_NAME ${BASE_NAME}-${VSG_VERSION})
+        ELSE()
+            SET(RELEASE_NAME ${BASE_NAME}-${VSG_VERSION}-rc${VSG_RELEASE_CANDIDATE})
+        ENDIF()
 
-    SET(GITCOMMAND git)
+        SET(RELEASE_MESSAGE "Release ${RELEASE_NAME}")
+        SET(BRANCH_MESSAGE "Branch ${VSG_BRANCH}")
 
-    IF   (VSG_RELEASE_CANDIDATE EQUAL 0)
-        SET(RELEASE_NAME ${BASE_NAME}-${VSG_VERSION})
-    ELSE()
-        SET(RELEASE_NAME ${BASE_NAME}-${VSG_VERSION}-rc${VSG_RELEASE_CANDIDATE})
-    ENDIF()
+        add_custom_target(tag-test
+            COMMAND echo ${GITCOMMAND} tag -a ${RELEASE_NAME} -m ${RELEASE_MESSAGE}
+            COMMAND echo ${GITCOMMAND} push origin ${RELEASE_NAME}
+        )
 
-    SET(RELEASE_MESSAGE "Release ${RELEASE_NAME}")
-    SET(BRANCH_MESSAGE "Branch ${VSG_BRANCH}")
+        add_custom_target(tag-run
+            COMMAND ${GITCOMMAND} tag -a ${RELEASE_NAME} -m ${RELEASE_MESSAGE}
+            COMMAND ${GITCOMMAND} push origin ${RELEASE_NAME}
+        )
 
-    add_custom_target(tag-test
-        COMMAND echo ${GITCOMMAND} tag -a ${RELEASE_NAME} -m ${RELEASE_MESSAGE}
-        COMMAND echo ${GITCOMMAND} push origin ${RELEASE_NAME}
-    )
+        add_custom_target(branch-test
+            COMMAND echo ${GITCOMMAND} branch ${VSG_BRANCH}
+            COMMAND echo ${GITCOMMAND} push origin ${VSG_BRANCH}
+        )
 
-    add_custom_target(tag-run
-        COMMAND ${GITCOMMAND} tag -a ${RELEASE_NAME} -m ${RELEASE_MESSAGE}
-        COMMAND ${GITCOMMAND} push origin ${RELEASE_NAME}
-    )
+        add_custom_target(branch-run
+            COMMAND ${GITCOMMAND} branch ${VSG_BRANCH}
+            COMMAND ${GITCOMMAND} push origin ${VSG_BRANCH}
+        )
 
-    add_custom_target(branch-test
-        COMMAND echo ${GITCOMMAND} branch ${VSG_BRANCH}
-        COMMAND echo ${GITCOMMAND} push origin ${VSG_BRANCH}
-    )
-
-    add_custom_target(branch-run
-        COMMAND ${GITCOMMAND} branch ${VSG_BRANCH}
-        COMMAND ${GITCOMMAND} push origin ${VSG_BRANCH}
-    )
-
+    endif()
 endif()
 
 #

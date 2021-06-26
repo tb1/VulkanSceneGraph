@@ -325,7 +325,7 @@ target_include_directories(vsg PUBLIC $<BUILD_INTERFACE:${VSG_SOURCE_DIR}/includ
 
 
 target_link_libraries(vsg ${LIBRARIES})
-
+add_library(vsg::vsg ALIAS vsg)
 
 install(TARGETS vsg EXPORT vsgTargets
         LIBRARY DESTINATION lib
@@ -347,7 +347,7 @@ if (glslang_FOUND)
     set(FIND_DEPENDENCY_GLSLANG "find_dependency(vsg_glslang)")
 endif()
 
-configure_file("${CMAKE_SOURCE_DIR}/src/vsg/vsgConfig.cmake.in" "${CMAKE_BINARY_DIR}/src/vsg/vsgConfig.cmake" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/vsgConfig.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/vsgConfig.cmake" @ONLY)
 
 # [==[
 install(EXPORT vsgTargets
@@ -357,8 +357,8 @@ install(EXPORT vsgTargets
 )
 
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file("${CMAKE_BINARY_DIR}/src/vsg/vsgConfigVersion.cmake" COMPATIBILITY SameMajorVersion)
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/vsgConfigVersion.cmake" COMPATIBILITY SameMajorVersion)
 
-install(FILES "${CMAKE_BINARY_DIR}/src/vsg/vsgConfig.cmake" "${CMAKE_BINARY_DIR}/src/vsg/vsgConfigVersion.cmake" DESTINATION lib/cmake/vsg)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/vsgConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/vsgConfigVersion.cmake" DESTINATION lib/cmake/vsg)
 
 # ]==]
